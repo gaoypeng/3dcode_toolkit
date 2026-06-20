@@ -1,0 +1,11 @@
+# Copy to ~/.config/3dcode/config.toml and fill in your scoped R2 token.
+# (Or set the matching R2_* / SOURCE env vars — env always wins over this file.)
+# NEVER commit a filled-in copy — it holds your secret key.
+
+endpoint = "https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+bucket   = "3dcodeverse"
+access_key_id     = "<YOUR_R2_ACCESS_KEY_ID>"
+secret_access_key = "<YOUR_R2_SECRET_ACCESS_KEY>"
+
+# Default source folder for your uploads (overridable with --source).
+source = "<your-source-name>"
