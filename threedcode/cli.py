@@ -15,7 +15,7 @@ import typer
 from . import __version__, registry
 from .config import load_config, save_config
 from .hashing import project_hashes
-from .schema import META_NAME, find_projects, validate_project
+from .schema import META_NAME, find_projects, merge_preserved, validate_project
 
 app = typer.Typer(add_completion=False, help="3DCodeVerse data toolkit.")
 config_app = typer.Typer(help="Manage R2 endpoint / token / default source.")
@@ -166,6 +166,7 @@ def exec_run(path: Path = typer.Argument(..., exists=True),
         if errors:
             typer.secho(f"✗ {d.name}: {'; '.join(errors)}", fg="red")
             continue
+        merge_preserved(d, meta)                     # don't clobber license / provenance
         res = run_dialect(meta["dialect"], d, meta, cfg)
         meta["exec"] = res
         if write:
@@ -213,12 +214,21 @@ def push(path: Path = typer.Argument(..., exists=True),
             continue
         if dialect:
             meta["dialect"] = dialect
-        meta["owner"] = owner or ""
+        merge_preserved(d, meta)                     # keep exec / license / provenance from disk
+        meta["owner"] = owner or meta.get("owner", "")
         meta["contributor"] = contributor
         meta["dedup"] = project_hashes(d, meta)
+        matches = registry.dedup_matches(meta, index)
+        # validation report — travels with the project so the admin Inbox can review it
+        meta["report"] = {
+            "warnings": warnings,
+            "duplicates": [{"of": ex, "why": why} for ex, why in matches],
+            "exec": meta.get("exec"),
+            "files": sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file()),
+        }
         (d / META_NAME).write_text(json.dumps(meta, indent=2, ensure_ascii=False))
 
-        for ex, why in registry.dedup_matches(meta, index):
+        for ex, why in matches:
             dup += 1
             typer.secho(f"⚠ {d.name}: {why} as {ex}", fg="yellow")
         if warnings:

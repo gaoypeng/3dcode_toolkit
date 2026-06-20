@@ -6,10 +6,28 @@ derived renders+glb + a meta.json. A *source* folder holds many projects.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 META_NAME = "meta.json"
+
+# fields a fresh build must NOT clobber — carried over from an existing meta.json
+PRESERVE = ("exec", "license", "provenance", "title", "owner")
+
+
+def merge_preserved(d: Path, meta: dict) -> dict:
+    """Carry over user-set / previously-computed fields (exec, license, …) from disk."""
+    f = d / META_NAME
+    if f.exists():
+        try:
+            old = json.loads(f.read_text())
+            for k in PRESERVE:
+                if old.get(k):
+                    meta[k] = old[k]
+        except Exception:
+            pass
+    return meta
 
 # code dialect by file extension (overridable with --dialect)
 DIALECT_BY_EXT = {
