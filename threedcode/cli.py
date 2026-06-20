@@ -39,13 +39,14 @@ def config_set(
     contrib_token: str = typer.Option(None, help="shared contributor token for the registry"),
     blender_5_0: str = typer.Option(None, help="local Blender 5.0 binary (for 3dcode exec)"),
     blender_5_1: str = typer.Option(None, help="local Blender 5.1 binary"),
+    core_dir: str = typer.Option(None, help="admin canonical store dir (for 3dcode ingest)"),
 ):
     """Write R2 settings to ~/.config/3dcode/config.toml (chmod 600)."""
     path = save_config({
         "endpoint": endpoint, "bucket": bucket, "access_key_id": access_key_id,
         "secret_access_key": secret_access_key, "source": source,
         "api": api, "contrib_token": contrib_token,
-        "blender_5_0": blender_5_0, "blender_5_1": blender_5_1,
+        "blender_5_0": blender_5_0, "blender_5_1": blender_5_1, "core_dir": core_dir,
     })
     typer.echo(f"saved -> {path}")
 
@@ -247,6 +248,53 @@ def push(path: Path = typer.Argument(..., exists=True),
                 typer.secho(f"  ! registry: {resp['error']}", fg="red")
 
     typer.echo(f"\n{'validated' if dry_run else 'uploaded'}: {up} · dup-flagged: {dup} · warn: {warn} · skipped: {skip}")
+
+
+@app.command()
+def ingest(project_id: str = typer.Argument(None, help="<source>/<project> to ingest (or use --all-approved)"),
+           all_approved: bool = typer.Option(False, "--all-approved", help="ingest every approved project"),
+           keep_staging: bool = typer.Option(False, "--keep-staging", help="don't delete from R2 after pulling")):
+    """ADMIN (lab-side): pull approved projects R2 → core dir, mark ingested, clear staging."""
+    cfg = load_config()
+    from .storage import R2
+    r2 = R2(cfg)
+    core = Path(cfg.core_dir)
+
+    if all_approved:
+        ids = [a["id"] for a in registry.fetch_approved(cfg)]
+    elif project_id:
+        ids = [project_id]
+    else:
+        typer.secho("give a <source>/<project> or --all-approved", fg="red", err=True)
+        raise typer.Exit(1)
+    if not ids:
+        typer.echo("nothing approved to ingest")
+        return
+
+    done = fail = 0
+    for pid in ids:
+        try:
+            dest = core / pid                          # core/<source>/<project>
+            res = r2.download_tree(pid, dest)
+            if res.files == 0:
+                typer.secho(f"✗ {pid}: nothing in staging", fg="red"); fail += 1; continue
+            meta_path = dest / META_NAME
+            if meta_path.exists():
+                meta = json.loads(meta_path.read_text())
+            else:
+                src, _, proj = pid.partition("/")
+                meta = {"id": pid, "source": src, "project": proj}
+            meta["status"] = "ingested"
+            resp = registry.register(cfg, meta)
+            if resp.get("error"):
+                typer.secho(f"  ! mark-ingested: {resp['error']}", fg="yellow")
+            if not keep_staging:
+                r2.delete_prefix(pid.rstrip("/") + "/")
+            typer.secho(f"↓ {pid}  ({res.files} files, {res.bytes / 1e6:.1f} MB) → {dest}", fg="green")
+            done += 1
+        except Exception as e:
+            typer.secho(f"✗ {pid}: {e}", fg="red"); fail += 1
+    typer.echo(f"\ningested: {done} · failed: {fail}")
 
 
 if __name__ == "__main__":

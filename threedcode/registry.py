@@ -40,6 +40,11 @@ def fetch_index(cfg: Config, source: str | None = None) -> list[dict]:
     return _req(cfg, path, "GET").get("index", [])
 
 
+def fetch_approved(cfg: Config) -> list[dict]:
+    """Admin-approved projects awaiting ingest: [{id, source, project}]."""
+    return _req(cfg, "/api/data/cv/approved", "GET").get("approved", [])
+
+
 def _phash_close(a: str, b: str, thresh: int = 6) -> bool:
     try:
         ha, hb = int(a.split(":", 1)[1], 16), int(b.split(":", 1)[1], 16)

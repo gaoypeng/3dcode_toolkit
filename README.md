@@ -85,7 +85,19 @@ Each code type plugs in how to validate / find code / hash for that dialect:
 
 …extensible: add a `threedcode/dialects/<name>.py` adapter.
 
+## Admin (lab-side)
+
+After reviewing uploads in the web Inbox (`/data/inbox`) and approving them:
+
+```bash
+3dcode config set --core-dir /path/to/canonical/store
+3dcode ingest --all-approved      # pull approved R2 → core dir, mark ingested, clear staging
+3dcode ingest <source>/<project>  # or a single project
+```
+
 ## Status
 
-v0.1 — `config` / `validate` / `push` working end-to-end to R2. Next: Supabase registry,
-dedup index + `check`, admin `ingest`/`reject`, and the web review Inbox.
+`config` / `validate` / `check` / `anomalies` / `exec` / `push` / `ingest` working end-to-end:
+contributor pushes → R2 staging + validation report in the registry → admin reviews in the
+web Inbox → approve → `ingest` pulls to the canonical store. Next: R2 asset preview in the
+Inbox, `3dcode render`, and CadQuery / FreeCAD exec adapters.

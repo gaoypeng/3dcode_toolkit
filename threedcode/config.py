@@ -28,6 +28,7 @@ _ENV = {
     "contrib_token": "CV_CONTRIB_TOKEN",
     "blender_5_0": "BLENDER_5_0",
     "blender_5_1": "BLENDER_5_1",
+    "core_dir": "DCODE_CORE_DIR",
 }
 
 
@@ -42,6 +43,7 @@ class Config:
     contrib_token: str = ""                     # shared contributor token for those endpoints
     blender_5_0: str = ""                        # local Blender 5.0 binary, for `3dcode exec`
     blender_5_1: str = ""                        # local Blender 5.1 binary
+    core_dir: str = "/lab/yipeng/infinigen/3dcodeverse"   # admin-side canonical store (for `3dcode ingest`)
 
     def require_r2(self) -> None:
         missing = [k for k in ("endpoint", "bucket", "access_key_id", "secret_access_key")

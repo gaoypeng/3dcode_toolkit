@@ -50,6 +50,21 @@ class R2:
                 files += 1
         return Uploaded(files, bytes_)
 
+    def download_tree(self, prefix: str, dest_dir: Path) -> Uploaded:
+        """Download every object under ``prefix`` into ``dest_dir/<relpath>`` (zero egress on R2)."""
+        prefix = prefix.rstrip("/") + "/"
+        files = bytes_ = 0
+        for key in self.list(prefix):
+            rel = key[len(prefix):]
+            if not rel:
+                continue
+            out = dest_dir / rel
+            out.parent.mkdir(parents=True, exist_ok=True)
+            self._s3.download_file(self.bucket, key, str(out))
+            bytes_ += out.stat().st_size
+            files += 1
+        return Uploaded(files, bytes_)
+
     def list(self, prefix: str = "") -> list[str]:
         keys, token = [], None
         while True:
