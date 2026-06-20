@@ -76,6 +76,12 @@ def validate_project(d: Path, source: str) -> tuple[list[str], list[str], dict |
     if not (has_ref or has_prompt):
         warnings.append("no reference image and no prompt — the (input -> code) pair is ungrounded")
 
+    # structure convention: renders + mesh belong in renders/, not loose at the top level
+    top_assets = [c.name for c in d.iterdir()
+                  if c.is_file() and c.suffix.lower() in (IMAGE_EXTS | MESH_EXTS)]
+    if top_assets:
+        warnings.append(f"{len(top_assets)} render/mesh file(s) at top level — convention is a renders/ folder")
+
     meta = build_meta(d, source, code, lines)
     return errors, warnings, meta
 

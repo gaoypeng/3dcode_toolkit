@@ -42,9 +42,10 @@ Saved to `~/.config/3dcode/config.toml` (chmod 600). You can also use `R2_*` env
 ## Use
 
 ```bash
-3dcode validate ./data            # check layout + anomalies, no upload
-3dcode push ./data --dry-run      # validate + compute fingerprints, no upload
-3dcode push ./data --source you   # validate → hash → write meta.json → upload to R2
+3dcode validate ./data            # layout + structure + anomaly checks, no upload
+3dcode check ./data               # validate + flag duplicates vs the corpus, no upload
+3dcode anomalies ./data           # distribution outliers (code length / char count)
+3dcode push ./data --source you   # validate → hash → dedup-check → upload → register
 ```
 
 `./data` may be a single project, or a folder of project subdirs — each is uploaded under

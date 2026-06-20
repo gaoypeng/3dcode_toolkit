@@ -111,6 +111,42 @@ def check(path: Path = typer.Argument(..., exists=True),
 
 
 @app.command()
+def anomalies(path: Path = typer.Argument(..., exists=True),
+              source: str = typer.Option(None, help="source name (defaults to config)")):
+    """Distribution-based outlier scan — flag projects whose code length / char count is an outlier."""
+    source = source or load_config().source or "unknown"
+    rows = []
+    for d, errors, _, meta in _iter(path, source):
+        if errors or not meta:
+            continue
+        chars = len((d / meta["code"]["file"]).read_text(errors="replace"))
+        rows.append((d.name, meta["code"]["lines"], chars))
+    if len(rows) < 4:
+        typer.echo(f"need >= 4 valid projects for a distribution (got {len(rows)})")
+        return
+
+    def bounds(vals: list[int]) -> tuple[float, float]:
+        s = sorted(vals)
+        q1, q3 = s[len(s) // 4], s[(3 * len(s)) // 4]
+        iqr = q3 - q1
+        return q1 - 1.5 * iqr, q3 + 1.5 * iqr
+
+    lo_l, hi_l = bounds([r[1] for r in rows])
+    lo_c, hi_c = bounds([r[2] for r in rows])
+    flagged = 0
+    for name, lines, chars in rows:
+        why = []
+        if lines < lo_l or lines > hi_l:
+            why.append(f"lines={lines} (typical {int(max(0, lo_l))}–{int(hi_l)})")
+        if chars < lo_c or chars > hi_c:
+            why.append(f"chars={chars} (typical {int(max(0, lo_c))}–{int(hi_c)})")
+        if why:
+            flagged += 1
+            typer.secho(f"⚠ {name}: {'; '.join(why)}", fg="yellow")
+    typer.echo(f"\nscanned {len(rows)} · {flagged} length/char outliers")
+
+
+@app.command()
 def push(path: Path = typer.Argument(..., exists=True),
          source: str = typer.Option(None, help="source name (defaults to config)"),
          owner: str = typer.Option(None, help="who is responsible for this data"),
