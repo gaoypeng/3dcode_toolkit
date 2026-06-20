@@ -45,8 +45,23 @@ Saved to `~/.config/3dcode/config.toml` (chmod 600). You can also use `R2_*` env
 3dcode validate ./data            # layout + structure + anomaly checks, no upload
 3dcode check ./data               # validate + flag duplicates vs the corpus, no upload
 3dcode anomalies ./data           # distribution outliers (code length / char count)
+3dcode exec ./data                # run the code locally; record pass/fail in meta.json
 3dcode push ./data --source you   # validate → hash → dedup-check → upload → register
 ```
+
+### Executability (`3dcode exec`)
+
+Runs each project's code **locally, in your own runtimes** (nothing is uploaded) and records
+the result in `meta.json`. Pass = ran error-free **and** produced a non-empty mesh. Configure
+the runtimes once:
+
+```bash
+3dcode config set --blender-5-0 /path/to/blender-5.0/blender \
+                  --blender-5-1 /path/to/blender-5.1/blender
+```
+Blender Python is wired (runs in 5.0 + 5.1); CadQuery / FreeCAD / OpenSCAD adapters are next.
+Missing runtimes are reported `n/a` (skipped, not failed). A maintainer may optionally re-run
+`exec` on ingest as a backstop.
 
 `./data` may be a single project, or a folder of project subdirs — each is uploaded under
 `<source>/<project>/`.

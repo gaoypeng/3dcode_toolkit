@@ -22,5 +22,5 @@ dedup = ["trimesh>=4.0", "imagehash>=4.3", "Pillow>=10.0", "numpy>=1.24"]
 [project.scripts]
 "3dcode" = "threedcode.cli:app"
 
-[tool.setuptools]
-packages = ["threedcode"]
+[tool.setuptools.packages.find]
+include = ["threedcode*"]

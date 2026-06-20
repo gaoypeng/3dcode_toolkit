@@ -26,6 +26,8 @@ _ENV = {
     "source": "DCODE_SOURCE",
     "api": "CV_API",
     "contrib_token": "CV_CONTRIB_TOKEN",
+    "blender_5_0": "BLENDER_5_0",
+    "blender_5_1": "BLENDER_5_1",
 }
 
 
@@ -38,6 +40,8 @@ class Config:
     source: str = ""
     api: str = "https://www.3dcodebench.com"   # registry + dedup-index endpoints
     contrib_token: str = ""                     # shared contributor token for those endpoints
+    blender_5_0: str = ""                        # local Blender 5.0 binary, for `3dcode exec`
+    blender_5_1: str = ""                        # local Blender 5.1 binary
 
     def require_r2(self) -> None:
         missing = [k for k in ("endpoint", "bucket", "access_key_id", "secret_access_key")

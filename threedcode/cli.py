@@ -37,12 +37,15 @@ def config_set(
     source: str = typer.Option(None, help="default source folder for your uploads"),
     api: str = typer.Option(None, help="registry API base (default 3dcodebench.com)"),
     contrib_token: str = typer.Option(None, help="shared contributor token for the registry"),
+    blender_5_0: str = typer.Option(None, help="local Blender 5.0 binary (for 3dcode exec)"),
+    blender_5_1: str = typer.Option(None, help="local Blender 5.1 binary"),
 ):
     """Write R2 settings to ~/.config/3dcode/config.toml (chmod 600)."""
     path = save_config({
         "endpoint": endpoint, "bucket": bucket, "access_key_id": access_key_id,
         "secret_access_key": secret_access_key, "source": source,
         "api": api, "contrib_token": contrib_token,
+        "blender_5_0": blender_5_0, "blender_5_1": blender_5_1,
     })
     typer.echo(f"saved -> {path}")
 
@@ -144,6 +147,40 @@ def anomalies(path: Path = typer.Argument(..., exists=True),
             flagged += 1
             typer.secho(f"⚠ {name}: {'; '.join(why)}", fg="yellow")
     typer.echo(f"\nscanned {len(rows)} · {flagged} length/char outliers")
+
+
+@app.command("exec")
+def exec_run(path: Path = typer.Argument(..., exists=True),
+             source: str = typer.Option(None, help="source name (defaults to config)"),
+             write: bool = typer.Option(True, help="write the result into each meta.json")):
+    """Run each project's code in its dialect runtime(s); record pass/fail in meta.json.
+
+    Runs LOCALLY in your own runtimes (configure Blender via `3dcode config set
+    --blender-5-0 ... --blender-5-1 ...`); nothing is uploaded. Pass = error-free AND a non-empty mesh.
+    """
+    from .dialects import run_dialect
+    cfg = load_config()
+    source = source or cfg.source or "unknown"
+    npass = nfail = 0
+    for d, errors, _, meta in _iter(path, source):
+        if errors:
+            typer.secho(f"✗ {d.name}: {'; '.join(errors)}", fg="red")
+            continue
+        res = run_dialect(meta["dialect"], d, meta, cfg)
+        meta["exec"] = res
+        if write:
+            (d / META_NAME).write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+        parts, passed = [], True
+        for rt, r in res.items():
+            st = r.get("status")
+            parts.append(f"{rt}={st}" + (f"({r.get('verts')}v)" if st == "ok" else ""))
+            if st not in ("ok", "n/a", "unsupported"):
+                passed = False
+        typer.secho(f"{'✓' if passed else '✗'} {d.name}: {'  '.join(parts)}",
+                    fg="green" if passed else "red")
+        npass += passed
+        nfail += not passed
+    typer.echo(f"\nexec: {npass} passed · {nfail} failed")
 
 
 @app.command()
