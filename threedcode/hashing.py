@@ -36,12 +36,14 @@ def geom_hash(glb: Path) -> str | None:
         mesh = trimesh.load(str(glb), force="mesh")
         if mesh.is_empty or mesh.vertices.shape[0] == 0:
             return None
-        # scale + center invariant sampled-point signature → robust to translate/scale
-        pts = mesh.bounding_box_oriented.sample_volume(2048)
-        pts -= pts.mean(0)
-        scale = np.linalg.norm(pts, axis=1).max() or 1.0
-        digest = np.round(np.sort((pts / scale).ravel()), 3).tobytes()
-        return "geom:" + hashlib.sha256(digest).hexdigest()[:32]
+        # DETERMINISTIC translate/scale-invariant signature: center, scale-normalize,
+        # round, then sort vertex rows (random sampling would hash differently every run).
+        v = np.asarray(mesh.vertices, dtype=float)
+        v -= v.mean(0)
+        scale = float(np.linalg.norm(v, axis=1).max()) or 1.0
+        v = np.round(v / scale, 3)
+        v = v[np.lexsort(v.T)]
+        return "geom:" + hashlib.sha256(v.tobytes()).hexdigest()[:32]
     except Exception:
         return None
 

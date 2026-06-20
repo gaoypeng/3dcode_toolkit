@@ -12,7 +12,7 @@ from pathlib import Path
 
 import typer
 
-from . import __version__
+from . import __version__, registry
 from .config import load_config, save_config
 from .hashing import project_hashes
 from .schema import META_NAME, find_projects, validate_project
@@ -35,11 +35,14 @@ def config_set(
     access_key_id: str = typer.Option(None),
     secret_access_key: str = typer.Option(None),
     source: str = typer.Option(None, help="default source folder for your uploads"),
+    api: str = typer.Option(None, help="registry API base (default 3dcodebench.com)"),
+    contrib_token: str = typer.Option(None, help="shared contributor token for the registry"),
 ):
     """Write R2 settings to ~/.config/3dcode/config.toml (chmod 600)."""
     path = save_config({
         "endpoint": endpoint, "bucket": bucket, "access_key_id": access_key_id,
         "secret_access_key": secret_access_key, "source": source,
+        "api": api, "contrib_token": contrib_token,
     })
     typer.echo(f"saved -> {path}")
 
@@ -83,12 +86,39 @@ def validate(path: Path = typer.Argument(..., exists=True),
 
 
 @app.command()
+def check(path: Path = typer.Argument(..., exists=True),
+          source: str = typer.Option(None, help="source name (defaults to config)")):
+    """Validate + fingerprint locally, and flag duplicates vs the existing corpus — no upload."""
+    cfg = load_config()
+    source = source or cfg.source or "unknown"
+    index = registry.fetch_index(cfg)
+    n = dups = 0
+    for d, errors, warnings, meta in _iter(path, source):
+        n += 1
+        if errors:
+            typer.secho(f"✗ {d.name}: {'; '.join(errors)}", fg="red")
+            continue
+        meta["dedup"] = project_hashes(d, meta)
+        hits = registry.dedup_matches(meta, index)
+        if hits:
+            dups += 1
+            for ex, why in hits:
+                typer.secho(f"⚠ {d.name}: {why} as {ex}", fg="yellow")
+        else:
+            tail = f"  ⚠ {'; '.join(warnings)}" if warnings else ""
+            typer.secho(f"✓ {d.name}: unique{tail}", fg="green")
+    typer.echo(f"\nchecked {n} · {dups} with potential duplicates · index size {len(index)}")
+
+
+@app.command()
 def push(path: Path = typer.Argument(..., exists=True),
          source: str = typer.Option(None, help="source name (defaults to config)"),
          owner: str = typer.Option(None, help="who is responsible for this data"),
          dialect: str = typer.Option(None, help="override code dialect"),
-         dry_run: bool = typer.Option(False, "--dry-run", help="validate + hash, do not upload")):
-    """Validate -> hash -> write meta.json -> upload each project to R2 staging."""
+         dry_run: bool = typer.Option(False, "--dry-run", help="validate + hash, do not upload"),
+         no_dedup: bool = typer.Option(False, "--no-dedup", help="skip the duplicate check"),
+         no_register: bool = typer.Option(False, "--no-register", help="upload but don't register in the registry")):
+    """Validate -> hash -> dedup-check -> write meta.json -> upload to R2 -> register."""
     cfg = load_config()
     source = source or cfg.source
     if not source:
@@ -100,8 +130,9 @@ def push(path: Path = typer.Argument(..., exists=True),
     if not dry_run:
         from .storage import R2  # imported lazily so validate/dry-run need no creds
         r2 = R2(cfg)
+    index = [] if no_dedup else registry.fetch_index(cfg)
 
-    up = skip = flag = 0
+    up = skip = warn = dup = 0
     for d, errors, warnings, meta in _iter(path, source):
         if errors:
             skip += 1
@@ -109,13 +140,16 @@ def push(path: Path = typer.Argument(..., exists=True),
             continue
         if dialect:
             meta["dialect"] = dialect
-        meta["owner"] = owner or meta.get("owner", "")
+        meta["owner"] = owner or ""
         meta["contributor"] = contributor
         meta["dedup"] = project_hashes(d, meta)
         (d / META_NAME).write_text(json.dumps(meta, indent=2, ensure_ascii=False))
 
+        for ex, why in registry.dedup_matches(meta, index):
+            dup += 1
+            typer.secho(f"⚠ {d.name}: {why} as {ex}", fg="yellow")
         if warnings:
-            flag += 1
+            warn += 1
             typer.secho(f"⚠ {d.name}: {'; '.join(warnings)}", fg="yellow")
         if dry_run:
             up += 1
@@ -124,8 +158,12 @@ def push(path: Path = typer.Argument(..., exists=True),
         result = r2.upload_tree(d, f"{source}/{d.name}")
         up += 1
         typer.secho(f"↑ {meta['id']}  ({result.files} files, {result.bytes/1e6:.1f} MB)", fg="green")
+        if not no_register:
+            resp = registry.register(cfg, meta)
+            if resp.get("error"):
+                typer.secho(f"  ! registry: {resp['error']}", fg="red")
 
-    typer.echo(f"\n{'validated' if dry_run else 'uploaded'}: {up} · flagged: {flag} · skipped: {skip}")
+    typer.echo(f"\n{'validated' if dry_run else 'uploaded'}: {up} · dup-flagged: {dup} · warn: {warn} · skipped: {skip}")
 
 
 if __name__ == "__main__":

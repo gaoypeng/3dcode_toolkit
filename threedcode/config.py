@@ -24,6 +24,8 @@ _ENV = {
     "access_key_id": "R2_ACCESS_KEY_ID",
     "secret_access_key": "R2_SECRET_ACCESS_KEY",
     "source": "DCODE_SOURCE",
+    "api": "CV_API",
+    "contrib_token": "CV_CONTRIB_TOKEN",
 }
 
 
@@ -34,6 +36,8 @@ class Config:
     access_key_id: str = ""
     secret_access_key: str = ""
     source: str = ""
+    api: str = "https://www.3dcodebench.com"   # registry + dedup-index endpoints
+    contrib_token: str = ""                     # shared contributor token for those endpoints
 
     def require_r2(self) -> None:
         missing = [k for k in ("endpoint", "bucket", "access_key_id", "secret_access_key")
@@ -54,7 +58,9 @@ def _file_values() -> dict:
 
 def load_config() -> Config:
     raw = _file_values()
-    return Config(**{k: os.environ.get(env) or raw.get(k, "") for k, env in _ENV.items()})
+    # only pass non-empty values so dataclass defaults (e.g. `api`) survive
+    vals = {k: (os.environ.get(env) or raw.get(k, "")) for k, env in _ENV.items()}
+    return Config(**{k: v for k, v in vals.items() if v})
 
 
 def save_config(updates: dict) -> Path:
