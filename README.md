@@ -79,12 +79,12 @@ Computed on your machine, light deps, no Blender/GPU:
 
 Each code type plugs in how to validate / find code / hash for that dialect:
 
-- **Blender Python** (`.py`)
-- **CAD** — CadQuery, FreeCAD
-- **OpenSCAD** (`.scad`)
-- **Shaders** — GLSL / OpenGL
+- **Blender Python** (`.py`) — exec runs in Blender 5.0 + 5.1; render = Workbench clay / EEVEE.
+- **CadQuery** (`.py`, `--dialect cadquery`, install `3dcode[cadquery]`) — exec verifies a
+  non-empty solid; render exports STL → clay-render in Blender.
+- **FreeCAD / OpenSCAD / shaders** — adapters TBD.
 
-…extensible: add a `threedcode/dialects/<name>.py` adapter.
+…extensible: add a `threedcode/dialects/<name>.py` adapter (a `run()` for exec, `render()` for render).
 
 ## Admin (lab-side)
 

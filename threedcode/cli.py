@@ -153,6 +153,7 @@ def anomalies(path: Path = typer.Argument(..., exists=True),
 @app.command("exec")
 def exec_run(path: Path = typer.Argument(..., exists=True),
              source: str = typer.Option(None, help="source name (defaults to config)"),
+             dialect: str = typer.Option(None, help="override code dialect (e.g. cadquery)"),
              write: bool = typer.Option(True, help="write the result into each meta.json")):
     """Run each project's code in its dialect runtime(s); record pass/fail in meta.json.
 
@@ -168,6 +169,8 @@ def exec_run(path: Path = typer.Argument(..., exists=True),
             typer.secho(f"✗ {d.name}: {'; '.join(errors)}", fg="red")
             continue
         merge_preserved(d, meta)                     # don't clobber license / provenance
+        if dialect:
+            meta["dialect"] = dialect
         res = run_dialect(meta["dialect"], d, meta, cfg)
         meta["exec"] = res
         if write:
@@ -175,7 +178,13 @@ def exec_run(path: Path = typer.Argument(..., exists=True),
         parts, passed = [], True
         for rt, r in res.items():
             st = r.get("status")
-            parts.append(f"{rt}={st}" + (f"({r.get('verts')}v)" if st == "ok" else ""))
+            extra = ""
+            if st == "ok":
+                if r.get("verts"):
+                    extra = f"({r['verts']}v)"
+                elif r.get("volume") is not None:
+                    extra = f"(vol {r['volume']})"
+            parts.append(f"{rt}={st}{extra}")
             if st not in ("ok", "n/a", "unsupported"):
                 passed = False
         typer.secho(f"{'✓' if passed else '✗'} {d.name}: {'  '.join(parts)}",
@@ -253,6 +262,7 @@ def push(path: Path = typer.Argument(..., exists=True),
 @app.command()
 def render(path: Path = typer.Argument(..., exists=True),
           source: str = typer.Option(None, help="source name (defaults to config)"),
+          dialect: str = typer.Option(None, help="override code dialect (e.g. cadquery)"),
           mode: str = typer.Option("white", help="white | textured")):
     """Render each project's code LOCALLY into renders/ (white clay or textured) — no upload.
 
@@ -266,6 +276,8 @@ def render(path: Path = typer.Argument(..., exists=True),
     for d, errors, _, meta in _iter(path, source):
         if errors:
             typer.secho(f"✗ {d.name}: {'; '.join(errors)}", fg="red"); continue
+        if dialect:
+            meta["dialect"] = dialect
         res = render_dialect(meta["dialect"], d, meta, cfg, mode)
         st = res.get("status")
         if st == "ok":

@@ -18,6 +18,7 @@ dependencies = [
 # Heavier, optional: geometry + perceptual hashing for dedup. Base install stays light.
 [project.optional-dependencies]
 dedup = ["trimesh>=4.0", "imagehash>=4.3", "Pillow>=10.0", "numpy>=1.24"]
+cadquery = ["cadquery>=2.5"]
 
 [project.scripts]
 "3dcode" = "threedcode.cli:app"
