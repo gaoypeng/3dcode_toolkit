@@ -251,6 +251,33 @@ def push(path: Path = typer.Argument(..., exists=True),
 
 
 @app.command()
+def render(path: Path = typer.Argument(..., exists=True),
+          source: str = typer.Option(None, help="source name (defaults to config)"),
+          mode: str = typer.Option("white", help="white | textured")):
+    """Render each project's code LOCALLY into renders/ (white clay or textured) — no upload.
+
+    Runs the code in your local Blender (config --blender-5-0) and writes view_00..03.png +
+    thumb.png. Then `3dcode push` picks up the renders (modality + phash dedup + Inbox preview).
+    """
+    from .dialects import render_dialect
+    cfg = load_config()
+    source = source or cfg.source or "unknown"
+    n = fail = 0
+    for d, errors, _, meta in _iter(path, source):
+        if errors:
+            typer.secho(f"✗ {d.name}: {'; '.join(errors)}", fg="red"); continue
+        res = render_dialect(meta["dialect"], d, meta, cfg, mode)
+        st = res.get("status")
+        if st == "ok":
+            n += 1
+            typer.secho(f"🖼 {d.name}: {len(res.get('images', []))} views → renders/", fg="green")
+        else:
+            fail += 1
+            typer.secho(f"✗ {d.name}: {st}" + (f" — {res['error']}" if res.get("error") else ""), fg="red")
+    typer.echo(f"\nrendered: {n} · failed: {fail}")
+
+
+@app.command()
 def ingest(project_id: str = typer.Argument(None, help="<source>/<project> to ingest (or use --all-approved)"),
            all_approved: bool = typer.Option(False, "--all-approved", help="ingest every approved project"),
            keep_staging: bool = typer.Option(False, "--keep-staging", help="don't delete from R2 after pulling")):
