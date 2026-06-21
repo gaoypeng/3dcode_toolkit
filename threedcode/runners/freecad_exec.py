@@ -58,7 +58,10 @@ def main():
     if stl_out:
         try:
             import MeshPart
-            mesh = MeshPart.meshFromShape(Shape=shapes[0][1], LinearDeflection=0.1, AngularDeflection=0.5)
+            shp = shapes[0][1]
+            diag = getattr(shp.BoundBox, "DiagonalLength", 0) or 10.0
+            lin = max(diag * 0.002, 1e-3)   # ~0.2% of size → curves stay smooth at any scale
+            mesh = MeshPart.meshFromShape(Shape=shp, LinearDeflection=lin, AngularDeflection=0.2)
             mesh.write(stl_out)
         except Exception as e:
             result["stl_error"] = str(e)[:200]

@@ -56,6 +56,20 @@ def main():
         result["status"] = "no_geometry"
         return _write(result_path, result)
 
+    # auto-smooth: interpolate normals on curved surfaces (no facet ribbing) while keeping
+    # sharp feature edges crisp — the right "CAD look" for tessellated B-rep exports.
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in meshes:
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+    bpy.ops.object.shade_smooth()
+    for op in ("shade_auto_smooth", "shade_smooth_by_angle"):
+        try:
+            getattr(bpy.ops.object, op)(angle=math.radians(35))
+            break
+        except Exception:
+            continue
+
     mn = Vector((1e9,) * 3); mx = Vector((-1e9,) * 3)
     for o in meshes:
         for c in o.bound_box:
@@ -75,7 +89,13 @@ def main():
     scn.render.film_transparent = True
     sh = scn.display.shading
     sh.light = "STUDIO"; sh.color_type = "SINGLE"; sh.single_color = (0.92, 0.92, 0.93)
-    sh.show_cavity = False; sh.show_shadows = False; sh.show_object_outline = False
+    sh.show_shadows = False
+    sh.show_cavity = False          # cavity ribbons curved tessellation — let auto-smooth carry the shape
+    sh.show_object_outline = True   # silhouette edge only → subtle CAD-drawing feel, no facet ribbing
+    try:
+        sh.object_outline_color = (0.15, 0.15, 0.17)
+    except Exception:
+        pass
 
     for tag, deg in VIEWS:
         rad = math.radians(deg)

@@ -72,7 +72,8 @@ def render(code_file: Path, renders_dir: Path, blender_bin: str, mode: str) -> d
     renders_dir.mkdir(parents=True, exist_ok=True)
     stl = renders_dir.parent / "_b123d_export.stl"
     try:
-        bd.export_stl(shape, str(stl))
+        diag = getattr(shape.bounding_box(), "diagonal", 0) or 10.0
+        bd.export_stl(shape, str(stl), tolerance=max(diag * 0.002, 1e-3), angular_tolerance=0.2)
     except Exception as e:
         return {"status": "error", "error": f"stl export failed: {str(e)[:200]}"}
     tf = tempfile.NamedTemporaryFile("r", suffix=".json", delete=False)
