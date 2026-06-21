@@ -77,23 +77,25 @@ def main():
         sh = scn.display.shading
         sh.light = "STUDIO"; sh.color_type = "SINGLE"; sh.single_color = (0.92, 0.92, 0.93)
         sh.show_cavity = False; sh.show_shadows = False; sh.show_object_outline = False
-    else:  # textured: keep the script's materials, EEVEE + 3-point lighting
+    else:  # textured: keep the script's materials; neutral white studio (per data_pipeline_operators/renderer_texture.py)
         for eng in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE"):
             try:
                 scn.render.engine = eng; break
             except Exception:
                 continue
+        # neutral white world so material colour/roughness reads true-to-shader
         world = bpy.data.worlds.new("w"); scn.world = world; world.use_nodes = True
-        bg = world.node_tree.nodes.get("Background")
-        if bg:
-            bg.inputs[1].default_value = 0.4
+        nt = world.node_tree; nt.nodes.clear()
+        bg = nt.nodes.new("ShaderNodeBackground"); wout = nt.nodes.new("ShaderNodeOutputWorld")
+        bg.inputs[0].default_value = (1, 1, 1, 1); bg.inputs[1].default_value = 0.6
+        nt.links.new(bg.outputs[0], wout.inputs[0])
+        # 3-point area lights; energy scaled by extent^2 keeps illuminance constant across object sizes
         for name, loc, energy in [
-            ("Key", (dist, -dist * 0.7, dist * 1.2), 1500),
-            ("Fill", (-dist * 0.7, -dist * 0.4, dist * 0.6), 500),
-            ("Rim", (0, dist * 0.9, dist), 700),
+            ("Key", (dist * 0.9, -dist * 0.7, dist * 1.5), 1400),
+            ("Fill", (-dist * 0.7, -dist * 0.4, dist * 1.0), 500),
+            ("Rim", (0.0, dist * 0.9, dist * 1.3), 800),
         ]:
-            ld = bpy.data.lights.new(name, "AREA"); ld.energy = energy * (extent ** 2)
-            ld.size = extent
+            ld = bpy.data.lights.new(name, "AREA"); ld.energy = energy * (extent ** 2); ld.size = extent
             lo = bpy.data.objects.new(name, ld); scn.collection.objects.link(lo)
             lo.location = center + Vector(loc)
 
