@@ -39,6 +39,8 @@ def config_set(
     contrib_token: str = typer.Option(None, help="shared contributor token for the registry"),
     blender_5_0: str = typer.Option(None, help="local Blender 5.0 binary (for 3dcode exec)"),
     blender_5_1: str = typer.Option(None, help="local Blender 5.1 binary"),
+    openscad: str = typer.Option(None, help="local OpenSCAD binary/AppImage (.scad)"),
+    freecadcmd: str = typer.Option(None, help="local freecadcmd binary (FreeCAD)"),
     core_dir: str = typer.Option(None, help="admin canonical store dir (for 3dcode ingest)"),
 ):
     """Write R2 settings to ~/.config/3dcode/config.toml (chmod 600)."""
@@ -46,7 +48,8 @@ def config_set(
         "endpoint": endpoint, "bucket": bucket, "access_key_id": access_key_id,
         "secret_access_key": secret_access_key, "source": source,
         "api": api, "contrib_token": contrib_token,
-        "blender_5_0": blender_5_0, "blender_5_1": blender_5_1, "core_dir": core_dir,
+        "blender_5_0": blender_5_0, "blender_5_1": blender_5_1,
+        "openscad": openscad, "freecadcmd": freecadcmd, "core_dir": core_dir,
     })
     typer.echo(f"saved -> {path}")
 

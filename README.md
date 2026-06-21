@@ -23,8 +23,12 @@ renders+glb + a `meta.json`. A **source** folder holds many projects:
 
 ```bash
 pipx install "git+https://github.com/gaoypeng/3dcode_toolkit"
-# dedup fingerprints (geometry + perceptual hashing) are optional extras:
+# optional extras (per dialect / for dedup):
 pipx install "3dcode[dedup] @ git+https://github.com/gaoypeng/3dcode_toolkit"
+#   [dedup]     geometry + perceptual hashing
+#   [cadquery]  CadQuery exec/render        \  conflicting OCP builds —
+#   [build123d] build123d exec/render       /  install in SEPARATE environments
+# OpenSCAD + FreeCAD are system binaries (not pip) — point `config set` at them.
 ```
 
 ## Configure (once)
@@ -61,7 +65,7 @@ the runtimes once:
 3dcode config set --blender-5-0 /path/to/blender-5.0/blender \
                   --blender-5-1 /path/to/blender-5.1/blender
 ```
-Blender Python is wired (runs in 5.0 + 5.1); CadQuery / FreeCAD / OpenSCAD adapters are next.
+Wired dialects: Blender Python (5.0 + 5.1), CadQuery, build123d, OpenSCAD, FreeCAD.
 Missing runtimes are reported `n/a` (skipped, not failed). A maintainer may optionally re-run
 `exec` on ingest as a backstop.
 
@@ -80,12 +84,18 @@ Computed on your machine, light deps, no Blender/GPU:
 
 Each code type plugs in how to validate / find code / hash for that dialect:
 
-- **Blender Python** (`.py`) — exec runs in Blender 5.0 + 5.1; render = Workbench clay / EEVEE.
-- **CadQuery** (`.py`, `--dialect cadquery`, install `3dcode[cadquery]`) — exec verifies a
-  non-empty solid; render exports STL → clay-render in Blender.
-- **FreeCAD / OpenSCAD / shaders** — adapters TBD.
+- **Blender Python** (`.py`, default) — exec runs in Blender 5.0 + 5.1; render = Workbench clay / EEVEE.
+- **CadQuery** (`.py`, `--dialect cadquery`, `3dcode[cadquery]`) — exec verifies a non-empty
+  solid (volume>0); render exports STL → clay-render in Blender.
+- **build123d** (`.py`, `--dialect build123d`, `3dcode[build123d]`) — same as CadQuery (shared
+  OCC kernel). ⚠️ CadQuery and build123d ship **conflicting OCP builds** — install them in
+  **separate environments**, not one venv.
+- **OpenSCAD** (`.scad`, auto-detected) — exec compiles to STL (must be non-empty); render =
+  STL → clay-render in Blender. Needs the `openscad` binary/AppImage (`config set --openscad`).
+- **FreeCAD** (`.py`, `--dialect freecad`) — exec/render run inside `freecadcmd` (checks for a
+  non-empty solid, tessellates → clay-render). Needs `freecadcmd` (`config set --freecadcmd`).
 
-…extensible: add a `threedcode/dialects/<name>.py` adapter (a `run()` for exec, `render()` for render).
+…extensible: add a `threedcode/dialects/<name>_dialect.py` adapter (`run()` for exec, `render()` for render).
 
 ## Admin (lab-side)
 
@@ -99,7 +109,7 @@ After reviewing uploads in the web Inbox (`/data/inbox`) and approving them:
 
 ## Status
 
-`config` / `validate` / `check` / `anomalies` / `exec` / `push` / `ingest` working end-to-end:
-contributor pushes → R2 staging + validation report in the registry → admin reviews in the
-web Inbox → approve → `ingest` pulls to the canonical store. Next: R2 asset preview in the
-Inbox, `3dcode render`, and CadQuery / FreeCAD exec adapters.
+`config` / `validate` / `check` / `anomalies` / `exec` / `render` / `grid` / `push` / `ingest`
+working end-to-end: contributor pushes → R2 staging + validation report in the registry →
+admin reviews in the web Inbox → approve → `ingest` pulls to the canonical store. Five dialects
+wired (Blender Python, CadQuery, build123d, OpenSCAD, FreeCAD) — each with exec + render.

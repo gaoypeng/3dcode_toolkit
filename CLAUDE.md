@@ -58,8 +58,9 @@ near-duplicate; not absurdly long (anomaly-flagged); permissive `license`/`prove
 threedcode/
   cli.py          # the `3dcode` entry (Typer)
   config.py storage.py(R2) schema.py hashing.py registry.py
-  dialects/       # per-dialect adapters: base interface + blender_python, cadquery_dialect, …
-  runners/        # in-Blender wrappers: blender_exec.py, blender_render.py, blender_render_mesh.py
+  dialects/       # per-dialect adapters: blender_python, cadquery_dialect, build123d_dialect,
+                  #   openscad_dialect, freecad_dialect (CadQuery & build123d = separate venvs)
+  runners/        # runtime wrappers: blender_exec.py, blender_render.py, blender_render_mesh.py, freecad_exec.py
 docs/contributing.md   # contributor onboarding
 ```
 
