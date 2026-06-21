@@ -47,6 +47,7 @@ Saved to `~/.config/3dcode/config.toml` (chmod 600). You can also use `R2_*` env
 3dcode anomalies ./data           # distribution outliers (code length / char count)
 3dcode exec ./data                # run the code locally; record pass/fail in meta.json
 3dcode render ./data --mode white # render the code locally into renders/ (white | textured)
+3dcode grid ./data                # contact-sheet PNG of all thumbnails (visual review)
 3dcode push ./data --source you   # validate → hash → dedup-check → upload → register
 ```
 

@@ -290,6 +290,28 @@ def render(path: Path = typer.Argument(..., exists=True),
 
 
 @app.command()
+def grid(path: Path = typer.Argument(..., exists=True),
+         out: Path = typer.Option(None, help="output PNG (default <dir>/_grid.png)"),
+         cols: int = typer.Option(6, help="columns")):
+    """Compose a contact-sheet PNG of a source's project thumbnails (quick visual review)."""
+    from .grid import make_grid
+    projects = find_projects(path)
+    if not projects:
+        typer.secho(f"no projects under {path}", fg="red", err=True)
+        raise typer.Exit(1)
+    dest = out or (path / "_grid.png")
+    try:
+        n = make_grid(projects, dest, cols=cols)
+    except ImportError:
+        typer.secho("grid needs Pillow — install 3dcode[dedup]", fg="red", err=True)
+        raise typer.Exit(1)
+    if n == 0:
+        typer.secho("no thumbnails found — run `3dcode render` first?", fg="yellow")
+    else:
+        typer.secho(f"grid: {n} thumbnails → {dest}", fg="green")
+
+
+@app.command()
 def ingest(project_id: str = typer.Argument(None, help="<source>/<project> to ingest (or use --all-approved)"),
            all_approved: bool = typer.Option(False, "--all-approved", help="ingest every approved project"),
            keep_staging: bool = typer.Option(False, "--keep-staging", help="don't delete from R2 after pulling")):
